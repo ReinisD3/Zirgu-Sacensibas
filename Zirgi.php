@@ -2,29 +2,82 @@
 
 class Runner
 {
-    public string $name;
-    public int $trackPosition = 0;
-    public int $time = 0;
-    public int $finishTime = 0;
-    public int $betKoef ;
-    public int $finishPosition = 0;
+    private string $name;
 
     function __construct($nameSymbols)
     {
         $this->name = $nameSymbols[array_rand($nameSymbols)];
-        $this->betKoef = rand(1,5);
+    }
+    public function getName(): string
+    {
+        return $this->name;
     }
 }
+class HorseRaceInfo
+{
+    private Runner $runner;
+    private int $trackPosition = 0;
+    private int $time = 0;
+    private int $finishTime = 0;
+    private int $betKoef ;
+    private int $finishPosition = 0;
 
+    public function __construct(Runner $runner)
+    {
+        $this->runner = $runner;
+        $this->betKoef = rand(1,5);
+    }
+    public function setFinishPosition(int $finishPosition): void
+    {
+        $this->finishPosition = $finishPosition;
+    }
+    public function getFinishPosition(): int
+    {
+        return $this->finishPosition;
+    }
+    public function getBetKoef(): int
+    {
+        return $this->betKoef;
+    }
+    public function getTime(): int
+    {
+        return $this->time;
+    }
+    public function addTime(int $time): void
+    {
+        $this->time += $time;
+    }
+    public function getTrackPosition(): int
+    {
+        return $this->trackPosition;
+    }
+    public function setTrackPosition(int $trackPosition): void
+    {
+        $this->trackPosition += $trackPosition;
+    }
+    public function getFinishTime(): int
+    {
+        return $this->finishTime;
+    }
+    public function setFinishTime(int $finishTime): void
+    {
+        $this->finishTime = $finishTime;
+    }
+    public function getRunner(): string
+    {
+        return $this->runner->getName();
+    }
 
+}
 class RunSimulator
 {
-    public int $runnerCount;
+    private int $runnerCount;
     private int $trackLength;
-    public array $track;
-    public array $runners;
+    private array $track;
+    private array $runners;
     private array $nameSymbols = ['@', '#', '$', '%', '&', '*', '+', '^', '!'];
     public array $winners = [];
+    private array $horsesRaceInfo;
 
     function __construct(int $runnerCount, int $trackLength)
     {
@@ -32,42 +85,57 @@ class RunSimulator
         $this->trackLength = $trackLength;
         $this->makeRunners();
         $this->makeTrack();
+        $this->makeHorsesRaceInfo();
     }
-
-    private function makeRunners()
+    private function makeHorsesRaceInfo()
+    {
+        foreach ($this->runners as $runner)
+        {
+            $this->horsesRaceInfo[] = new HorseRaceInfo($runner);
+        }
+    }
+    private function makeRunners():void
     {
         for ($i = 0; $i < $this->runnerCount; $i++) {
             $this->runners[] = new Runner($this->nameSymbols);
-            $this->nameSymbols = array_diff($this->nameSymbols, [$this->runners[$i]->name]);
+            $this->nameSymbols = array_diff($this->nameSymbols, [$this->runners[$i]->getName()]);
         }
     }
-
-    private function makeTrack()
+    private function makeTrack():void
     {
         foreach (range(1, $this->trackLength) as $i) {
             $this->track[] = '_';
         }
     }
-
-    public function runSection()
+    public function runSection():void
     {
-        foreach ($this->runners as $runner) {
-            $runner->trackPosition += rand(1, 2);
-            $runner->time++;
+        foreach ($this->horsesRaceInfo as $horse) {
+            $horse->setTrackPosition(rand(1, 2));
+            $horse->addTime(1);
         }
     }
-
-    public function updateWinners()
+    public function updateWinners():void
     {
-        foreach ($this->runners as $runner) {
-            if ($runner->trackPosition >= $this->trackLength && !in_array($runner, $this->winners)) {
-                $runner->finishTime = $runner->time;
-                $this->winners[] = $runner;
+        foreach ($this->horsesRaceInfo as $horse) {
+            if ($horse->getTrackPosition() >= $this->trackLength && !in_array($horse, $this->winners)) {
+                $horse->setFinishTime($horse->getTime());
+                $this->winners[] = $horse;
             }
         }
     }
+    public function getRunnerCount(): int
+    {
+        return $this->runnerCount;
+    }
+    public function getHorsesRaceInfo(): array
+    {
+        return $this->horsesRaceInfo;
+    }
+    public function getTrack(): array
+    {
+        return $this->track;
+    }
 }
-
 class SimulatorInterface
 {
     private RunSimulator $simulator;
@@ -77,20 +145,18 @@ class SimulatorInterface
     {
         $this->simulator = $simulator;
     }
-
-    private function displaySection()
+    private function displaySection():void
     {
-        foreach ($this->simulator->runners as $runner) {
-            foreach ($this->simulator->track as $key => $section) {
-                echo $key === $runner->trackPosition ? $runner->name : $section;
+        foreach ($this->simulator->getHorsesRaceInfo() as $horse) {
+            foreach ($this->simulator->getTrack() as $key => $section) {
+                echo $key === $horse->getTrackPosition() ? $horse->getRunner() : $section;
             }
             echo PHP_EOL;
         }
     }
-
-    public function displayRun()
+    public function displayRun():void
     {
-        while (count($this->simulator->winners) < $this->simulator->runnerCount) {
+        while (count($this->simulator->winners) < $this->simulator->getRunnerCount()) {
             system('clear');
             $this->displaySection();
             usleep(250000);
@@ -100,36 +166,35 @@ class SimulatorInterface
         system('clear');
         $this->displayWinners();
     }
-
-    private function displayWinners()
+    private function displayWinners():void
     {
         $position = 0;
         $previousRunnerTime = 0;
         foreach ($this->simulator->winners as $winner) {
-            if ($winner->finishTime !== $previousRunnerTime) {
+            if ($winner->getFinishTime() !== $previousRunnerTime) {
                 $position++;
             }
-            $winner->finishPosition = $position;
-            echo "Position $position  is $winner->name " . PHP_EOL;
-            $previousRunnerTime = $winner->finishTime;
+            $winner->setFinishPosition($position);
+            echo "Position $position  is ".$winner->getRunner()  . PHP_EOL;
+            $previousRunnerTime = $winner->getFinishTime();
         }
     }
-    public function displayBetWins()
+    public function displayBetWins():void
     {
         $totalWon = 0;
         $firstPositionHorses = [];
-        foreach ($this->simulator->runners as $horse)
+        foreach ($this->simulator->getHorsesRaceInfo() as $horse)
         {
-            if ($horse->finishPosition == 1){
+            if ($horse->getFinishPosition() == 1){
                 $firstPositionHorses [] = $horse;
             }
         }
         foreach ($firstPositionHorses as $horse)
         {
-            if(array_key_exists($horse->name,$this->bets))
+            if(array_key_exists($horse->getRunner(),$this->bets))
             {
 
-                $totalWon += $this->bets[$horse->name]*$horse->betKoef;
+                $totalWon += $this->bets[$horse->getRunner()]*$horse->getBetKoef();
             }
         }
 //        echo "Your horses finished :".PHP_EOL;
@@ -137,17 +202,16 @@ class SimulatorInterface
 //            echo "$horse finished -> ".$this->simulator->runners[$horse].PHP_EOL;
 //        }
         echo 'You won betting '.$totalWon.'$'.PHP_EOL;
-
     }
-    public function displayHorses()
+    public function displayHorses():void
     {
         echo 'Today running : '.PHP_EOL;
-        foreach ($this->simulator->runners as $horse)#
+        foreach ($this->simulator->getHorsesRaceInfo() as $horse)#
         {
-            echo "Horse --> $horse->name with bet coefficent : $horse->betKoef".PHP_EOL;
+            echo "Horse --> ".$horse->getRunner()." with bet coefficient : ".$horse->getBetKoef().PHP_EOL;
         }
     }
-    public function PutBets()
+    public function PutBets():void
     {
         $more = true;
         while ($more) {
@@ -160,12 +224,9 @@ class SimulatorInterface
                 continue;
             }
             $more = false;
-
-
         }
     }
 }
-
 $displayRun = new SimulatorInterface(new RunSimulator(5, 42));
 $displayRun->displayHorses();
 $displayRun->PutBets();
